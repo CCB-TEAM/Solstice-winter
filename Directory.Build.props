@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      NU1900：拿不到 nuget.org 的漏洞数据（本机网络受限时的常态）。
+      它不是构建错误，但每次 restore 都会刷一遍，把真正的错误淹掉，所以静音。
+    -->
+    <NoWarn>$(NoWarn);NU1900</NoWarn>
+  </PropertyGroup>
+</Project>

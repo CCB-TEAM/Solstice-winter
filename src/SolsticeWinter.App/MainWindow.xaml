@@ -1,0 +1,176 @@
+<Window x:Class="SolsticeWinter.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:SolsticeWinter.App.Views"
+        Title="Solstice-winter — cooked 蓝图工坊"
+        Height="900" Width="1500"
+        Background="{StaticResource Chrome.Background}"
+        Foreground="{StaticResource Chrome.Foreground}"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- 菜单：文件 / 资产 / 视图 / 帮助 -->
+        <Menu DockPanel.Dock="Top" Background="{StaticResource Chrome.PanelAlt}"
+              Foreground="{StaticResource Chrome.Foreground}">
+            <MenuItem Header="文件(_F)">
+                <MenuItem Header="退出" Click="OnExit" />
+            </MenuItem>
+
+            <MenuItem Header="资产(_A)" x:Name="AssetMenu" SubmenuOpened="OnAssetMenuOpened">
+                <MenuItem Header="打开…" InputGestureText="Ctrl+O" Click="OnOpenAsset" />
+                <Separator />
+                <MenuItem Header="（最近）" IsEnabled="False" x:Name="RecentPlaceholder" />
+            </MenuItem>
+
+            <MenuItem Header="视图(_V)">
+                <MenuItem Header="返回" InputGestureText="Alt+Left" Click="OnBack" x:Name="BackItem" />
+                <MenuItem Header="重置视图" Click="OnResetView" />
+                <Separator />
+                <MenuItem Header="字号 +" Click="OnFontUp" />
+                <MenuItem Header="字号 −" Click="OnFontDown" />
+                <Separator />
+                <MenuItem Header="标题：美化" Click="OnTitlePretty" />
+                <MenuItem Header="标题：内部名" Click="OnTitleRaw" />
+                <Separator />
+                <MenuItem Header="重新加载设置" Click="OnReloadSettings" />
+            </MenuItem>
+
+            <MenuItem Header="帮助(_H)">
+                <MenuItem Header="打开日志" Click="OnOpenLog" />
+                <MenuItem Header="打开配置文件" Click="OnOpenSettings" />
+                <MenuItem Header="关于" Click="OnAbout" />
+            </MenuItem>
+        </Menu>
+
+        <!-- 底：状态条 -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Chrome.PanelAlt}"
+                BorderBrush="{StaticResource Chrome.Border}" BorderThickness="0,1,0,0" Padding="10,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Status}" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1" Text="{Binding Diagnostics}" Foreground="{StaticResource Chrome.ForegroundDim}"
+                           Margin="12,0,0,0" />
+            </Grid>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 左：只有函数列表，事件图置顶 -->
+            <Grid Grid.Column="0" Background="{StaticResource Chrome.Panel}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource PanelHeader}">
+                    <StackPanel>
+                        <TextBlock Text="函数" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CurrentAsset}" FontSize="10"
+                                   Foreground="{StaticResource Chrome.ForegroundDim}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+
+                <ListBox Grid.Row="1" x:Name="FunctionList"
+                         ItemsSource="{Binding Functions}"
+                         SelectedItem="{Binding SelectedFunction}"
+                         DisplayMemberPath="Display"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         ScrollViewer.CanContentScroll="True" />
+            </Grid>
+
+            <!-- 中：画布 + 事件下拉 -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource PanelHeader}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="事件" VerticalAlignment="Center"
+                                   Foreground="{StaticResource Chrome.ForegroundDim}" Margin="0,0,8,0" />
+
+                        <ComboBox Grid.Column="1" x:Name="EventCombo" Height="24"
+                                  ItemsSource="{Binding Events}"
+                                  SelectedItem="{Binding SelectedEvent}"
+                                  DisplayMemberPath="Display"
+                                  Visibility="{Binding HasEvents, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                </Border>
+
+                <views:GraphView Grid.Row="1" x:Name="Graph" />
+            </Grid>
+
+            <!-- 右：详情 -->
+            <Grid Grid.Column="2" Background="{StaticResource Chrome.Panel}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Style="{StaticResource PanelHeader}">
+                    <TextBlock Text="详情" FontWeight="SemiBold" />
+                </Border>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10" DataContext="{Binding SelectedNode}">
+                        <TextBlock Text="{Binding Title, TargetNullValue=未选择节点}"
+                                   FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding Kind}" Foreground="{StaticResource Chrome.ForegroundDim}" Margin="0,2,0,8" />
+                        <TextBlock Text="{Binding RawTitle}" Foreground="{StaticResource Chrome.ForegroundDim}"
+                                   TextWrapping="Wrap" Margin="0,0,0,8" />
+
+                        <TextBlock Text="输入" Foreground="{StaticResource Chrome.ForegroundDim}" />
+                        <ItemsControl ItemsSource="{Binding Inputs}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <Ellipse Width="8" Height="8" Fill="{Binding Brush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Title}" Margin="6,0,0,0" />
+                                        <TextBlock Text="{Binding TypeName}" Margin="6,0,0,0"
+                                                   Foreground="{StaticResource Chrome.ForegroundDim}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="输出" Foreground="{StaticResource Chrome.ForegroundDim}" Margin="0,10,0,0" />
+                        <ItemsControl ItemsSource="{Binding Outputs}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <Ellipse Width="8" Height="8" Fill="{Binding Brush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding Title}" Margin="6,0,0,0" />
+                                        <TextBlock Text="{Binding TypeName}" Margin="6,0,0,0"
+                                                   Foreground="{StaticResource Chrome.ForegroundDim}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{Binding Tooltip}" Margin="0,12,0,0" TextWrapping="Wrap"
+                                   Foreground="{StaticResource Chrome.ForegroundDim}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </DockPanel>
+</Window>

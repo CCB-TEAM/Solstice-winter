@@ -1,0 +1,24 @@
+{
+  "Sources": {
+    "ExportDirectory": "D:\\devenv\\fmodel\\Output\\Exports\\kards\\Content",
+    "JmapPath": "D:\\files\\projects\\jmap-out\\functions.json",
+    "AesKeySource": "fmodel",
+    "GameDirectory": "D:\\files\\projects\\kards"
+  },
+  "Layout": {
+    "ColumnWidth": 300,
+    "RowHeight": 260,
+    "DataOffsetY": -170
+  },
+  "Display": {
+    "TitleStyle": "pretty",
+    "ShowPinTypes": true,
+    "FontSize": 12,
+    "ShowGrid": true,
+    "UseNewDecompiler": true
+  },
+  "RecentAssets": [
+    "/Game/Blueprints/Logic/BP_Logic",
+    "/Game/Blueprints/Cards/BP_CardFunctions"
+  ]
+}

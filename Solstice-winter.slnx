@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/SolsticeWinter.Core/SolsticeWinter.Core.csproj" />
+  <Project Path="src/SolsticeWinter.Pak/SolsticeWinter.Pak.csproj" />
+  <Project Path="src/SolsticeWinter.Index/SolsticeWinter.Index.csproj" />
+  <Project Path="src/SolsticeWinter.Decompiler/SolsticeWinter.Decompiler.csproj" />
+  <Project Path="src/SolsticeWinter.Cli/SolsticeWinter.Cli.csproj" />
+  <Project Path="src/SolsticeWinter.App/SolsticeWinter.App.csproj" />
+</Solution>

@@ -1,0 +1,60 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      Studio 配色：浅色（Adonis Light 打底，这里只补「面板/画布/引脚」这几组语义色）。
+      控件外观交给 AdonisUI 的隐式样式，不在这里重写 Button/TextBox/ListBox。
+    -->
+    <SolidColorBrush x:Key="Chrome.Background" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="Chrome.Panel" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Chrome.PanelAlt" Color="#E9ECEF" />
+    <SolidColorBrush x:Key="Chrome.Border" Color="#D6DBE1" />
+    <SolidColorBrush x:Key="Chrome.Foreground" Color="#1F2328" />
+    <SolidColorBrush x:Key="Chrome.ForegroundDim" Color="#6B7280" />
+    <SolidColorBrush x:Key="Chrome.Accent" Color="#2563EB" />
+
+    <!--
+      画布：**深色**（与浅色外壳形成对比，节点图是主要视觉焦点）。
+      节点/连线/引脚都按深底反色，别拿 Chrome.* 的浅色值往这里套。
+    -->
+    <SolidColorBrush x:Key="Canvas.Background" Color="#1E1E1E" />
+    <SolidColorBrush x:Key="Canvas.Grid" Color="#2A2A2A" />
+    <SolidColorBrush x:Key="Edge.Exec" Color="#D0D0D0" />
+    <SolidColorBrush x:Key="Edge.Data" Color="#6A8FB8" />
+
+    <!-- 节点 -->
+    <SolidColorBrush x:Key="Node.Background" Color="#252526" />
+    <SolidColorBrush x:Key="Node.Border" Color="#3F3F46" />
+    <SolidColorBrush x:Key="Node.Foreground" Color="#E6E6E6" />
+    <SolidColorBrush x:Key="Node.Header.Call" Color="#3B6EA5" />
+    <SolidColorBrush x:Key="Node.Header.Data" Color="#4A7C8C" />
+    <SolidColorBrush x:Key="Node.Header.Branch" Color="#A06A1F" />
+    <SolidColorBrush x:Key="Node.Header.Set" Color="#2F7D6B" />
+    <SolidColorBrush x:Key="Node.Header.Return" Color="#9A4A4A" />
+    <SolidColorBrush x:Key="Node.Header.Opaque" Color="#6E7781" />
+
+    <!-- 引脚类型色（深底上提亮一档） -->
+    <SolidColorBrush x:Key="Pin.Exec" Color="#F0F0F0" />
+    <SolidColorBrush x:Key="Pin.Bool" Color="#C0392B" />
+    <SolidColorBrush x:Key="Pin.Int" Color="#1ABC9C" />
+    <SolidColorBrush x:Key="Pin.Int64" Color="#2E86C1" />
+    <SolidColorBrush x:Key="Pin.Byte" Color="#1E8449" />
+    <SolidColorBrush x:Key="Pin.Name" Color="#C39BD3" />
+    <SolidColorBrush x:Key="Pin.Text" Color="#D98880" />
+    <SolidColorBrush x:Key="Pin.Enum" Color="#27AE60" />
+    <SolidColorBrush x:Key="Pin.Delegate" Color="#B7950B" />
+    <SolidColorBrush x:Key="Pin.Float" Color="#2ECC71" />
+    <SolidColorBrush x:Key="Pin.String" Color="#E056A0" />
+    <SolidColorBrush x:Key="Pin.Object" Color="#3B8ED0" />
+    <SolidColorBrush x:Key="Pin.Struct" Color="#148F77" />
+    <SolidColorBrush x:Key="Pin.Unknown" Color="#7F8C8D" />
+
+    <Style x:Key="PanelHeader" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource Chrome.PanelAlt}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Chrome.Border}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="8,5" />
+    </Style>
+</ResourceDictionary>
+
+

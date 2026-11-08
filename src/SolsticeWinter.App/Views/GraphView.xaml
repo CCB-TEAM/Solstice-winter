@@ -1,0 +1,186 @@
+<UserControl x:Class="SolsticeWinter.App.Views.GraphView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:nodify="https://miroiu.github.io/nodify"
+             xmlns:vm="clr-namespace:SolsticeWinter.App.ViewModels"
+             xmlns:conv="clr-namespace:SolsticeWinter.App.Converters">
+    <UserControl.Resources>
+        <conv:KindToBrushConverter x:Key="KindToBrush" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisible" />
+
+        <!-- UE 编辑器风格：数据引脚是圆点，exec 引脚是三角形 -->
+        <ControlTemplate x:Key="DataPinShape" TargetType="Control">
+            <Ellipse Width="12" Height="12"
+                     Stroke="{TemplateBinding BorderBrush}"
+                     Fill="{TemplateBinding Background}"
+                     StrokeThickness="2" />
+        </ControlTemplate>
+
+        <ControlTemplate x:Key="ExecPinShape" TargetType="Control">
+            <Path Data="M 0,0 L 12,6 L 0,12 Z"
+                  Stroke="{TemplateBinding BorderBrush}"
+                  Fill="{TemplateBinding Background}"
+                  StrokeThickness="1.5"
+                  Stretch="Uniform" Width="12" Height="12" />
+        </ControlTemplate>
+
+        <!--
+          引脚：Nodify 的 NodeInput/NodeOutput 用 BorderBrush 当圆点颜色（连上后还用 Background 填充），
+          所以颜色要绑到 BorderBrush，不是 Fill/Background。
+          Header 绑的是 ConnectorVm 本身（不是字符串），HeaderTemplate 才能绑 Title。
+        -->
+        <Style TargetType="{x:Type nodify:NodeInput}" BasedOn="{StaticResource {x:Type nodify:NodeInput}}">
+            <Setter Property="Header" Value="{Binding}" />
+            <Setter Property="BorderBrush" Value="{Binding Brush}" />
+            <Setter Property="Anchor" Value="{Binding Anchor, Mode=OneWayToSource}" />
+            <Setter Property="ConnectorTemplate" Value="{StaticResource DataPinShape}" />
+            <Setter Property="IsConnected" Value="{Binding IsConnected}" />
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <!-- UE 编辑器风格：引脚名 + 未连线时显示默认值 -->
+                    <DataTemplate DataType="{x:Type vm:ConnectorVm}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Title}" FontSize="11" Foreground="#E6E6E6" MaxWidth="180" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Value}" FontSize="11" Foreground="#7FB86A" Margin="6,0,0,0"
+                                       Visibility="{Binding HasValue, Converter={StaticResource BoolToVisible}}" />
+                            <TextBlock Text="{Binding TypeName}" FontSize="10" Foreground="#8A8A8A" Margin="6,0,0,0" MaxWidth="110" TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding ShowType, Converter={StaticResource BoolToVisible}}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsExec}" Value="True">
+                    <Setter Property="ConnectorTemplate" Value="{StaticResource ExecPinShape}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="{x:Type nodify:NodeOutput}" BasedOn="{StaticResource {x:Type nodify:NodeOutput}}">
+            <Setter Property="Header" Value="{Binding}" />
+            <Setter Property="BorderBrush" Value="{Binding Brush}" />
+            <Setter Property="Anchor" Value="{Binding Anchor, Mode=OneWayToSource}" />
+            <Setter Property="IsConnected" Value="{Binding IsConnected}" />
+            <Setter Property="ConnectorTemplate" Value="{StaticResource DataPinShape}" />
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <!-- UE 编辑器风格：引脚名 + 未连线时显示默认值 -->
+                    <DataTemplate DataType="{x:Type vm:ConnectorVm}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Title}" FontSize="11" Foreground="#E6E6E6" MaxWidth="180" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Value}" FontSize="11" Foreground="#7FB86A" Margin="6,0,0,0"
+                                       Visibility="{Binding HasValue, Converter={StaticResource BoolToVisible}}" />
+                            <TextBlock Text="{Binding TypeName}" FontSize="10" Foreground="#8A8A8A" Margin="6,0,0,0" MaxWidth="110" TextTrimming="CharacterEllipsis"
+                                       Visibility="{Binding ShowType, Converter={StaticResource BoolToVisible}}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsExec}" Value="True">
+                    <Setter Property="ConnectorTemplate" Value="{StaticResource ExecPinShape}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <DataTemplate x:Key="NodeTemplate" DataType="{x:Type vm:GraphNodeVm}">
+            <nodify:Node Header="{Binding}"
+                         Input="{Binding Inputs}"
+                         Output="{Binding Outputs}"
+                         ToolTip="{Binding Tooltip}"
+                         MinWidth="160"
+                         MaxWidth="320"
+                         Background="{StaticResource Node.Background}"
+                         ContentBrush="{StaticResource Node.Background}"
+                         HeaderBrush="{Binding HeaderBrush}"
+                         BorderBrush="{StaticResource Node.Border}"
+                         BorderThickness="1"
+                         Foreground="{StaticResource Node.Foreground}">
+                <nodify:Node.Content>
+                    <TextBlock Text="{Binding Subtitle}" Foreground="#C8C8C8" FontSize="11"
+                               Margin="6,2,6,6" MaxWidth="240" TextTrimming="CharacterEllipsis" />
+                </nodify:Node.Content>
+                <nodify:Node.HeaderTemplate>
+                    <DataTemplate DataType="{x:Type vm:GraphNodeVm}">
+                        <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" Margin="6,4" MaxWidth="292" />
+                    </DataTemplate>
+                </nodify:Node.HeaderTemplate>
+                <nodify:Node.InputBindings>
+                    <!-- 双击调用节点 → 跳到被调函数（带返回栈） -->
+                    <MouseBinding Gesture="LeftDoubleClick"
+                                  Command="{Binding DataContext.JumpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}" />
+                </nodify:Node.InputBindings>
+            </nodify:Node>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ConnectionTemplate" DataType="{x:Type vm:ConnectionVm}">
+            <nodify:CircuitConnection Source="{Binding Output.Anchor}"
+                                      Target="{Binding Input.Anchor}">
+                <nodify:CircuitConnection.Style>
+                    <Style TargetType="nodify:CircuitConnection">
+                        <!-- 数据连线按**上游引脚的颜色**画（与引脚同色，UE 就是这样）。
+                             原来这里第二组 Setter 没包在 Trigger 里，无条件覆盖了第一组，
+                             于是所有连线都画成同一种白色、类型完全看不出来。
+                             `FallbackValue` 是保险：绑定一旦失败就画灰色，而不是变成透明看不见。 -->
+                        <Setter Property="Stroke" Value="{Binding Output.Brush, FallbackValue=#FF7F8C8D}" />
+                        <Setter Property="StrokeThickness" Value="1.4" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsExec}" Value="True">
+                                <Setter Property="Stroke" Value="{StaticResource Edge.Exec}" />
+                                <Setter Property="StrokeThickness" Value="2.2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </nodify:CircuitConnection.Style>
+            </nodify:CircuitConnection>
+        </DataTemplate>
+
+        <Style x:Key="ItemContainerStyle" TargetType="{x:Type nodify:ItemContainer}"
+               BasedOn="{StaticResource {x:Type nodify:ItemContainer}}">
+            <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+            <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+            <Setter Property="ContentTemplate" Value="{StaticResource NodeTemplate}" />
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <nodify:NodifyEditor x:Name="Editor"
+                             Background="{StaticResource Canvas.Background}"
+                             ClipToBounds="True"
+                             GridCellSize="15"
+                             ItemsSource="{Binding Nodes}"
+                             Connections="{Binding Connections}"
+                             ConnectionTemplate="{StaticResource ConnectionTemplate}"
+                             ItemContainerStyle="{StaticResource ItemContainerStyle}"
+                             AllowDrop="False">
+        </nodify:NodifyEditor>
+
+        <!-- 小地图：25k 宽的图没有它没法导航。点击/拖拽可以直接跳视口。 -->
+        <nodify:Minimap Width="220" Height="150"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                        Margin="0,0,16,16"
+                        Background="#1B1B1B" BorderBrush="#3F3F46" BorderThickness="1"
+                        ItemsSource="{Binding Nodes}"
+                        ItemsExtent="{Binding Extent, ElementName=Editor}"
+                        ViewportLocation="{Binding ViewportLocation, ElementName=Editor}"
+                        ViewportSize="{Binding ViewportSize, ElementName=Editor}">
+            <nodify:Minimap.ItemContainerStyle>
+                <Style TargetType="{x:Type nodify:MinimapItem}">
+                    <Setter Property="Location" Value="{Binding Location, Mode=TwoWay}" />
+                    <Setter Property="Width" Value="6" />
+                    <Setter Property="Height" Value="4" />
+                    <Setter Property="Background" Value="#8A8A8A" />
+                </Style>
+            </nodify:Minimap.ItemContainerStyle>
+        </nodify:Minimap>
+    </Grid>
+</UserControl>
+
+
+
+
+
+
+
+

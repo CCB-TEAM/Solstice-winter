@@ -1,0 +1,29 @@
+<Window x:Class="SolsticeWinter.App.Views.AssetPicker"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="打开资产" Height="520" Width="720"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Chrome.Panel}"
+        Foreground="{StaticResource Chrome.Foreground}">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBox Grid.Row="0" x:Name="Search" Height="26" Margin="0,0,0,8"
+                 TextChanged="OnSearchChanged"
+                 ToolTip="按虚拟路径过滤，例如 BP_Logic" />
+
+        <ListBox Grid.Row="1" x:Name="Results" DisplayMemberPath="Display"
+                 MouseDoubleClick="OnDoubleClick" />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <TextBlock x:Name="Count" VerticalAlignment="Center" Margin="0,0,12,0"
+                       Foreground="{StaticResource Chrome.ForegroundDim}" />
+            <Button Content="取消" Width="80" Margin="0,0,8,0" IsCancel="True" />
+            <Button Content="打开" Width="80" IsDefault="True" Click="OnOpen" />
+        </StackPanel>
+    </Grid>
+</Window>

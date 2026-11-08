@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>SolsticeWinter.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Nodify" Version="*" />
+    <PackageReference Include="AdonisUI" Version="1.17.1" />
+    <PackageReference Include="AdonisUI.ClassicTheme" Version="1.17.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SolsticeWinter.Core\SolsticeWinter.Core.csproj" />
+    <ProjectReference Include="..\SolsticeWinter.Index\SolsticeWinter.Index.csproj" />
+    <ProjectReference Include="..\SolsticeWinter.Decompiler\SolsticeWinter.Decompiler.csproj" />
+    <ProjectReference Include="..\SolsticeWinter.Pak\SolsticeWinter.Pak.csproj" />
+    <ProjectReference Include="..\..\..\out-repos\solstice-kismet\src\Solstice.Kismet\Solstice.Kismet.csproj" />
+  </ItemGroup>
+</Project>
+
+
+

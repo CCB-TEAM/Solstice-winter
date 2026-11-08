@@ -1,0 +1,16 @@
+# 构建产物
+bin/
+obj/
+
+# 运行时缓存：索引、探针输出、临时解包（384 MB，可重建）
+.cache/
+
+# 离线 NuGet 包：不进仓库（2.1 MB），fresh clone 走 NuGet.config 里的 nuget.org 兜底
+.nuget-local/
+
+# 第三方参考源码：UEBlueprintGraphViewer（1.2 GB，MIT，非本项目代码）
+external/
+
+# 日志与个人设置
+*.log
+*.user

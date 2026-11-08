@@ -1,0 +1,21 @@
+<Application x:Class="SolsticeWinter.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--
+                  AdonisUI 1.17.1：
+                    - 配色方案在 AdonisUI/ColorSchemes/Light.xaml
+                    - 控件样式在 AdonisUI.ClassicTheme/Resources.xaml（1.17.1 没有顶层 Resources.xaml）
+                  顺序不能反：配色必须先进，样式引用它。
+                -->
+                <ResourceDictionary Source="pack://application:,,,/AdonisUI;component/ColorSchemes/Light.xaml" />
+        <!-- Nodify 主题（含 Minimap / Connector 等控件的默认样式） -->
+        <ResourceDictionary Source="pack://application:,,,/Nodify;component/Themes/Nodify.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/AdonisUI.ClassicTheme;component/Resources.xaml" />
+                <ResourceDictionary Source="Themes/Studio.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
