@@ -3397,3 +3397,58 @@ FModel 的设置是**带标签页的模态对话框**（General / Models / Keybi
 --check-all 两个资产                    475 函数：空图 0 / 渲染失败 0 / 数量不一致 0 / 布局回退 0
 UI --open                             17 节点 / 22 连线，零绑定错误
 ```
+
+### 重写里程碑 39：纠正「VFS」——真正的 pak 源（全量诊断第七十六轮）
+
+**用户指出我做偏了，核实后确认他是对的。**
+
+三条事实（改前）：
+
+| 问题 | 证据 |
+|---|---|
+| 「从 VFS 打开」读的其实是 FModel 导出目录 | `AssetAccess.ExportPathFor` → `profile.ExportDirectory`，索引走 `Directory.EnumerateFiles(root, "*.uasset")` |
+| App 从来没用过 `PakArchive` | `App.csproj` 引了 Pak 项目，但 App 代码里 **0 处**引用 |
+| 覆盖率的真实差距 | 导出目录 **2137** 个 uasset，pak 里 `kards/Content` 有 **12738** 个 → 只看见 **17%** |
+
+设计文档 `docs/设计-VFS与上下文索引.md` 定义的 VFS 是
+`PakSource（mmap + 路径表） | DirSource（散文件） | Overlay`——我只实现了 DirSource，
+然后给它贴了「VFS」的标签。
+
+**本轮落地（按用户选择：完整三层 + 本地打开复用索引）**
+
+| 新增 | 位置 | 作用 |
+|---|---|---|
+| `IAssetSource` | Core | VFS 的「路径 → 字节」接口，上层只认它 |
+| `DirAssetSource` | Core | 目录源（原有行为的正确实现） |
+| `OverlayAssetSource` | Core | 叠加源，**先给的赢**；枚举取并集 |
+| `ContentPakSource` | Pak | pak 源，`/Game/...` ↔ `../../../kards/Content/...` 双向映射 |
+| `SymbolIndex.BuildFromSource` | Index | 从任意源建索引，逐资产解压→解析→覆盖，磁盘峰值 = 单资产 |
+| `pak source <pak> [虚拟路径]` | CLI | 验证虚拟路径映射与字节 |
+
+**验证（全部实跑）**
+
+```
+pak 总条目 33808，ContentPakSource 可见 12738 个资产
+
+--check pak source /Game/Blueprints/Logic/BP_Logic
+  uasset 107,140 字节  SHA256 79B357D3...5D5AAE
+  导出文件             SHA256 79B357D3...5D5AAE   ← 逐字节一致
+
+index build pak <pak> --limit 200
+  200 个资产 / 3.7 秒（≈18 ms/个）/ 引用边 1486 / 无失败
+```
+
+**关键取舍**
+
+| 决定 | 理由 |
+|---|---|
+| 字典在构造时建好 | `PakArchive.Files` 3.3 万条，每次读线性扫会让建索引退化成 4 亿次比较 |
+| 复用 `one.uasset` 文件名 | 磁盘峰值是单资产而不是 6.8 GB 解压树 |
+| `uexp` 缺失不算失败 | 纯结构体资产没有导出体；「没有」和「读失败」必须分开 |
+| `PakException` → 返回 false 而不是抛 | 让 Overlay 能退到下一个源（pak 坏但导出目录有，仍能打开） |
+
+**遗留（下一轮）**
+
+- UI 还没接线：设置里没有「数据源」选项，资产列表与打开仍走导出目录。
+- `SymbolIndex.BuildFromSource` 只验证到 limit=200；全量 12738 个需要后台跑一次（预估 4 分钟）。
+- 「从本地打开」还没复用索引签名（用户已确认要做）。

@@ -63,6 +63,49 @@ internal static class Program
                 var jmap = options.GetValueOrDefault("jmap")
                            ?? GameProfile.Kards(options.GetValueOrDefault("game")).JmapPath;
 
+                // `index build pak <pak文件>` —— 直接从 pak 建索引（VFS 的 PakSource）。
+                // 前缀默认 `kards/Content`（pak 里对应 /Game 的那一段），可用 --prefix 覆盖。
+                if (string.Equals(root, "pak", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (args.Length < 3)
+                        throw new InvalidOperationException("用法：index build pak <pak文件> [--prefix kards/Content] [--limit N]");
+
+                    var pakPath = args[2];
+                    var prefix = options.GetValueOrDefault("prefix") ?? "kards/Content";
+                    var pakProfile = GameProfile.Kards(options.GetValueOrDefault("game"));
+
+                    Console.WriteLine($"pak      : {pakPath}");
+                    Console.WriteLine($"前缀     : {prefix}  →  /Game/");
+
+                    using var archive = PakArchive.Open(pakPath, new PakOpenOptions
+                    {
+                        AesKeyHex = options.GetValueOrDefault("key") ?? pakProfile.AesKeyHex,
+                        OodleLibraryPath = options.GetValueOrDefault("oodle"),
+                    });
+
+                    var pakSource = new ContentPakSource(archive, prefix, pakPath);
+                    Console.WriteLine($"pak 条目 : {archive.EntryCount}，本源可见 {pakSource.Count} 个资产");
+
+                    var pakWatch = System.Diagnostics.Stopwatch.StartNew();
+                    var (pakIndex, pakFailures) = SymbolIndex.BuildFromSource(
+                        pakSource, usmap, limit, m => Console.WriteLine(m), jmap);
+                    pakWatch.Stop();
+
+                    pakIndex.Save(output);
+                    Console.WriteLine(pakIndex.Describe());
+                    Console.WriteLine($"耗时      : {pakWatch.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"写出      : {Path.GetFullPath(output)}（{new FileInfo(output).Length:N0} 字节）");
+
+                    if (pakFailures.Count > 0)
+                    {
+                        Console.WriteLine($"失败      : {pakFailures.Count} 个");
+                        foreach (var f in pakFailures.Take(10)) Console.WriteLine("  " + f);
+                        return 1;
+                    }
+
+                    return 0;
+                }
+
                 Console.WriteLine($"扫描 {root}");
                 Console.WriteLine(jmap is null ? "jmap：未提供（只索引资产本体）" : $"jmap：{jmap}");
                 var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -266,6 +309,36 @@ internal static class Program
 
                 Console.WriteLine($"解压校验：成功 {ok}，失败 {fail}，共 {total:N0} 字节");
                 return fail == 0 ? 0 : 1;
+            }
+
+            case "source":
+            {
+                // 验证 VFS 的 PakSource：给一个**虚拟路径**，看它能不能按 /Game/... 映射回 pak 条目。
+                // 与 `pak find` 的区别：那条走的是 pak 原始路径，这条走的是索引/UI 用的虚拟路径。
+                using var pak = PakArchive.Open(pakPath, openOptions);
+                var prefix = options.GetValueOrDefault("prefix") ?? "kards/Content";
+                var source = new ContentPakSource(pak, prefix, pakPath);
+
+                Console.WriteLine($"pak      : {pakPath}");
+                Console.WriteLine($"前缀     : {prefix}  →  /Game/");
+                Console.WriteLine($"本源可见 : {source.Count} 个资产");
+
+                if (args.Length < 3)
+                {
+                    foreach (var path in source.EnumerateVirtualPaths().Take(5)) Console.WriteLine("  " + path);
+                    return 0;
+                }
+
+                var virtualPath = args[2];
+                if (!source.TryRead(virtualPath, out var uasset, out var uexp))
+                {
+                    Console.WriteLine($"读不到：{virtualPath}");
+                    return 1;
+                }
+
+                Console.WriteLine($"uasset   : {uasset.Length:N0} 字节  SHA256 {Convert.ToHexString(SHA256.HashData(uasset))}");
+                Console.WriteLine($"uexp     : {(uexp is null ? "（无）" : $"{uexp.Length:N0} 字节  SHA256 {Convert.ToHexString(SHA256.HashData(uexp))}")}");
+                return 0;
             }
 
             case "compare":

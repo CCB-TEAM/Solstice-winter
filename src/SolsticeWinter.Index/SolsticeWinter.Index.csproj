@@ -9,4 +9,8 @@
   <ItemGroup>
     <PackageReference Include="UAssetAPI" Version="1.1.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SolsticeWinter.Core\SolsticeWinter.Core.csproj" />
+  </ItemGroup>
 </Project>
+

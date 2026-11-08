@@ -6,4 +6,8 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>SolsticeWinter.Pak</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SolsticeWinter.Core\SolsticeWinter.Core.csproj" />
+  </ItemGroup>
 </Project>
+

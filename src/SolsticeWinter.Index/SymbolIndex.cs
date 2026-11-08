@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SolsticeWinter.Core;
 using UAssetAPI.Unversioned;
 
 namespace SolsticeWinter.Index;
@@ -163,6 +164,98 @@ public sealed class SymbolIndex
             var temp = Path.Combine(Path.GetTempPath(), suffix);
             Directory.CreateDirectory(temp);
             return temp;
+        }
+    }
+
+    /// <summary>
+    /// 从**任意 VFS 源**构建索引（pak / 目录 / 叠加）。这是设计文档里那条正确路径：
+    /// 上层只认 <see cref="IAssetSource"/>，所以「资产从 pak 来」不会渗进索引逻辑。
+    ///
+    /// <para>
+    /// 与 <see cref="Build"/> 的区别：不再要求内容根是目录。每个资产**逐个**取字节、落到
+    /// 工作目录、解析完立刻覆盖——磁盘峰值只有一个资产，而不是整棵树。
+    /// </para>
+    ///
+    /// <para>
+    /// 代价：pak 是压缩存储的，取字节必须整份解压（Oodle 按块解压，拿不到「只解前 64 KB」）。
+    /// KARDS 实测 <c>kards/Content</c> 有 12738 个 uasset、解压后约 6.8 GB，
+    /// 这个成本是**一次性**的；建完之后查询全走字典。
+    /// </para>
+    /// </summary>
+    public static (SymbolIndex Index, List<string> Failures) BuildFromSource(
+        IAssetSource source,
+        string usmapPath,
+        int limit = int.MaxValue,
+        Action<string>? log = null,
+        string? jmapPath = null)
+    {
+        if (!File.Exists(usmapPath)) throw new FileNotFoundException($"usmap 不存在：{usmapPath}");
+
+        var paths = source.EnumerateVirtualPaths();
+        if (limit < paths.Count) paths = paths.Take(limit).ToList();
+
+        log?.Invoke($"  数据源：{source.Name}");
+        log?.Invoke($"  资产数：{paths.Count}");
+
+        var work = PickWorkRoot();
+        // UAssetAPI 用 File.Open(ReadWrite) 打开 .uexp 与 usmap，所以必须落在可写目录
+        var workUsmap = Path.Combine(work, "game.usmap");
+        File.Copy(usmapPath, workUsmap, overwrite: true);
+
+        var usmap = new Usmap(workUsmap);
+        var reader = new AssetHeaderReader(usmap);
+        var index = new SymbolIndex
+        {
+            BuiltFrom = source.Name,
+            BuiltAt = DateTimeOffset.Now,
+        };
+        var failures = new List<string>();
+
+        // 所有资产复用同一个文件名：解析完立刻覆盖，磁盘峰值 = 单个资产
+        var assetFile = Path.Combine(work, "one.uasset");
+        var uexpFile = Path.Combine(work, "one.uexp");
+
+        try
+        {
+            var done = 0;
+            foreach (var virtualPath in paths)
+            {
+                done++;
+
+                try
+                {
+                    if (!source.TryRead(virtualPath, out var uasset, out var uexp))
+                    {
+                        failures.Add($"{virtualPath}: 源里读不到字节");
+                        continue;
+                    }
+
+                    File.WriteAllBytes(assetFile, uasset);
+                    if (uexp is { Length: > 0 }) File.WriteAllBytes(uexpFile, uexp);
+                    else if (File.Exists(uexpFile)) File.Delete(uexpFile);
+
+                    index.Assets.Add(reader.Read(assetFile, virtualPath));
+                }
+                catch (Exception e)
+                {
+                    failures.Add($"{virtualPath}: {e.GetType().Name}: {e.Message}");
+                }
+
+                if (done % 500 == 0) log?.Invoke($"  已扫描 {done}/{paths.Count}（失败 {failures.Count}）");
+            }
+
+            if (!string.IsNullOrWhiteSpace(jmapPath) && File.Exists(jmapPath))
+            {
+                log?.Invoke($"  并入 jmap：{jmapPath}");
+                index.ScriptFunctions = JmapCatalog.Load(jmapPath).Functions.ToList();
+            }
+
+            index.RebuildLookups();
+            return (index, failures);
+        }
+        finally
+        {
+            try { Directory.Delete(work, recursive: true); } catch { /* 删不掉不影响结果 */ }
         }
     }
 
