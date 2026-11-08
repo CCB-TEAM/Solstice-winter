@@ -3285,3 +3285,51 @@ BP_CardFunctions  分支点 973　分支/宏节点 1418　少掉 0
 --check-all  475 函数：空图 0 / 渲染失败 0 / 数量不一致 0 / 布局回退 0
 check-ui     CanIDoAnything 17/17
 ```
+
+### 重写里程碑 37：更名 Solstice-winter + 首发 GitHub（全量诊断第七十四轮）
+
+**更名**（按要求更名 `Solstice-winter`）
+
+| 层级 | 旧 | 新 |
+|---|---|---|
+| 命名空间 / 项目名 | `BpStudio.*` | `SolsticeWinter.*` |
+| 解决方案 | `bp-studio.slnx` | `Solstice-winter.slnx` |
+| 设置文件 | `bpstudio.settings.json` | `solstice-winter.settings.json` |
+| 仓库目录 | `bp-studio` | `Solstice-winter` |
+
+替换规则（85 个源文件、503 处）：
+
+```
+BpStudio   -> SolsticeWinter      （命名空间 / 类型前缀）
+bp-studio  -> Solstice-winter     （路径 / 文件名）
+bpstudio   -> solstice-winter     （配置 / 临时目录）
+BPSTUDIO_  -> SOLSTICE_WINTER_    （环境变量）
+```
+
+**验证**：更名后重新构建并跑全套检查，**功能零变化**：
+
+```
+--validate   八条规则全部通过
+--check-all  475 函数：空图 0 / 渲染失败 0 / 数量不一致 0 / 布局回退 0
+UI           CanIDoAnything 17 节点 / 22 连线，正常渲染
+```
+
+**上传 GitHub**（`CCB-TEAM/Solstice-winter`，public）
+
+| 决定 | 理由 |
+|---|---|
+| 排除 `external/` | 1.2 GB 第三方参考源码（UEBlueprintGraphViewer，MIT），不是本项目代码 |
+| 排除 `.nuget-local/` | 2.1 MB 离线包；**连带把 `NuGet.config` 补上 nuget.org 兜底**，否则 fresh clone 无法还原 |
+| 排除 `.cache/` | 384 MB 运行期缓存，可重建 |
+
+提交结果：**111 个文件 / 1.01 MB / 22633 行**。
+
+**踩到的一个环境坑**：`C:/Users/ASUS/.gitconfig` 里有 URL 级代理
+`http.https://github.com/.proxy = http://127.0.0.1:7890`，而该端口没在监听、`github.com:443` 其实是直连可达的。
+推送用一次性覆盖解决，**没有改动全局 git 配置**：
+
+```powershell
+git -c "http.https://github.com/.proxy=" -c "https.https://github.com/.proxy=" push -u origin main
+```
+
+仓库地址：https://github.com/CCB-TEAM/Solstice-winter
