@@ -1,5 +1,6 @@
 using System.IO;
 using SolsticeWinter.Core;
+using SolsticeWinter.Pak;
 using Solstice.Kismet;
 
 namespace SolsticeWinter.App.Graph;
@@ -62,6 +63,85 @@ public static class AssetAccess
 
     /// <summary>诊断用：当前进程解析出的工作根候选。</summary>
     public static string DescribeWorkRoots() => string.Join(" | ", WorkRoots);
+
+    /// <summary>缓存的 pak（<c>PakArchive</c> 打开要读 3.3 万条索引，不能每次打开资产都重来）。</summary>
+    private static readonly List<PakArchive> OpenArchives = [];
+
+    /// <summary>当前源缓存，key 是数据源的判别串。设置改了就会换一个。</summary>
+    private static (string Key, IAssetSource Source)? _source;
+
+    /// <summary>
+    /// 按 <see cref="GameProfile"/> 造（或复用）一个 VFS 源。
+    ///
+    /// <para>
+    /// <c>dir</c> → <see cref="DirAssetSource"/>；<c>pak</c> → <see cref="ContentPakSource"/>；
+    /// <c>overlay</c> → 前者在前、后者在后（导出目录里改过的文件优先）。
+    /// </para>
+    ///
+    /// <para>
+    /// 缓存的意义：<c>ContentPakSource</c> 构造时要把 3.3 万个 pak 条目建字典，
+    /// 每次点开一个资产重建一次会明显卡顿。pak 变了（路径不同）才重建。
+    /// </para>
+    /// </summary>
+    public static IAssetSource SourceFor(GameProfile profile)
+    {
+        var key = $"{profile.DataSource}|{profile.ExportDirectory}|{profile.PakPath}|{profile.ContentPrefix}";
+        if (_source is { } cached && cached.Key == key) return cached.Source;
+
+        var mode = (profile.DataSource ?? "dir").ToLowerInvariant();
+        var sources = new List<IAssetSource>();
+
+        if (mode is "dir" or "overlay")
+        {
+            if (profile.ExportDirectory is { Length: > 0 } exportRoot && Directory.Exists(exportRoot))
+                sources.Add(new DirAssetSource(exportRoot));
+        }
+
+        if (mode is "pak" or "overlay")
+        {
+            if (profile.PakPath is { Length: > 0 } pakPath && File.Exists(pakPath))
+            {
+                var archive = PakArchive.Open(pakPath, new PakOpenOptions { AesKeyHex = profile.AesKeyHex });
+                OpenArchives.Add(archive);
+                sources.Add(new ContentPakSource(archive, profile.ContentPrefix ?? "kards/Content", pakPath));
+            }
+        }
+
+        IAssetSource source = sources.Count switch
+        {
+            0 => new EmptyAssetSource($"{mode}:未配置"),
+            1 => sources[0],
+            _ => new OverlayAssetSource([.. sources]),
+        };
+
+        _source = (key, source);
+        return source;
+    }
+
+    /// <summary>切数据源 / 退出时清掉缓存的 pak 句柄。</summary>
+    public static void ResetSources()
+    {
+        foreach (var archive in OpenArchives)
+        {
+            try { archive.Dispose(); } catch { /* 关不掉不影响退出 */ }
+        }
+
+        OpenArchives.Clear();
+        _source = null;
+    }
+
+    /// <summary>数据源一个都没有时的占位：枚举为空、读一律失败，错误信息说明缺什么。</summary>
+    private sealed class EmptyAssetSource(string name) : IAssetSource
+    {
+        public string Name => name;
+        public IReadOnlyList<string> EnumerateVirtualPaths() => [];
+        public bool TryRead(string virtualPath, out byte[] uasset, out byte[]? uexp)
+        {
+            uasset = [];
+            uexp = null;
+            return false;
+        }
+    }
 
     public static string ExportPathFor(GameProfile profile, string virtualPath)
     {
@@ -157,20 +237,24 @@ public static class AssetAccess
         return OpenWorked(assetName, uasset, uexp, usmap);
     }
 
+    /// <summary>
+    /// 按虚拟路径打开资产，**字节来自当前数据源**（`dir` / `pak` / `overlay`）。
+    /// 改前这里直接拼导出目录路径——那只有 `dir` 模式能用，pak 模式永远「资产不存在」。
+    /// </summary>
     public static KismetWorkspace OpenWorkspace(GameProfile profile, string virtualPath)
     {
-        var uassetPath = ExportPathFor(profile, virtualPath);
-        if (!File.Exists(uassetPath)) throw new FileNotFoundException($"资产不存在：{uassetPath}");
+        var source = SourceFor(profile);
+        if (!source.TryRead(virtualPath, out var uasset, out var uexp))
+            throw new FileNotFoundException($"数据源 {source.Name} 里读不到资产：{virtualPath}");
 
         var usmapPath = profile.UsmapPath ?? throw new InvalidOperationException("profile 里没有 usmap");
-        var uasset = File.ReadAllBytes(uassetPath);
-        var uexp = File.ReadAllBytes(Path.ChangeExtension(uassetPath, ".uexp"));
         var usmap = File.ReadAllBytes(usmapPath);
-        // 同名资产（不同目录）会撞同一个工作目录，加一段路径哈希区分
-        var assetName = Path.GetFileNameWithoutExtension(uassetPath) + "-" +
+
+        // 同名资产（不同目录 / 不同源）会撞同一个工作目录，加一段路径哈希区分
+        var assetName = Path.GetFileName(virtualPath) + "-" +
                         (uint)virtualPath.GetHashCode(StringComparison.Ordinal);
 
-        return OpenWorked(assetName, uasset, uexp, usmap);
+        return OpenWorked(assetName, uasset, uexp ?? [], usmap);
     }
 
     /// <summary>「字节 → 工作目录 → KismetWorkspace」的共用部分（两条打开路径都走它）。</summary>
@@ -207,6 +291,8 @@ public static class AssetAccess
             "\n（通常是另一个实例正占着同一目录，或安全软件拦了临时目录写入）");
     }
 }
+
+
 
 
 

@@ -115,6 +115,23 @@ public sealed class SourcesSettings
 
     /// <summary>游戏目录（FModel 配置按它查 key，也是 pak 目录的默认上级）。</summary>
     public string? GameDirectory { get; set; } = @"D:\files\projects\kards";
+
+    /// <summary>
+    /// 数据源（VFS 底层取哪一层）：
+    /// <c>dir</c> = 只读导出目录；<c>pak</c> = 只读 pak；<c>overlay</c> = 先导出目录、后 pak。
+    ///
+    /// <para>
+    /// 默认 <c>dir</c>：pak 每条都要 Oodle 解压，索引也得从 pak 重建，切换成本不低，
+    /// 不该在用户没要求时默默换源。要覆盖全部内容就改成 <c>overlay</c>。
+    /// </para>
+    /// </summary>
+    public string DataSource { get; set; } = "dir";
+
+    /// <summary>pak 文件路径（<c>pak</c> / <c>overlay</c> 模式必填）。留空则用 pak 目录下最大的那个 .pak。</summary>
+    public string? PakPath { get; set; }
+
+    /// <summary>pak 内对应 <c>/Game</c> 的路径前缀（KARDS 是 <c>kards/Content</c>）。</summary>
+    public string ContentPrefix { get; set; } = "kards/Content";
 }
 
 /// <summary>布局参数。改完调 <c>GraphBuilder.Build</c> 重排即可，不需要重启。</summary>
@@ -149,6 +166,7 @@ public sealed class DisplaySettings
     /// </summary>
     public bool UseNewDecompiler { get; set; } = true;
 }
+
 
 
 

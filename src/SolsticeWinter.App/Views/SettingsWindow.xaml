@@ -87,7 +87,36 @@
             <TabItem Header="通用">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
                     <StackPanel>
-                        <TextBlock Text="数据源" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Text="VFS 数据源" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="决定资产的字节从哪读。pak 能覆盖全部内容（KARDS 实测 12738 个），导出目录只有一部分（2137 个）；叠加 = 导出目录优先、缺失的落到 pak。" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <RadioButton Content="导出目录" Style="{StaticResource FieldRadio}"
+                                         IsChecked="{Binding Sources.DataSource, Mode=TwoWay, Converter={StaticResource StyleIs}, ConverterParameter=dir}" />
+                            <RadioButton Content="pak" Style="{StaticResource FieldRadio}"
+                                         IsChecked="{Binding Sources.DataSource, Mode=TwoWay, Converter={StaticResource StyleIs}, ConverterParameter=pak}" />
+                            <RadioButton Content="叠加（导出目录 → pak）" Style="{StaticResource FieldRadio}"
+                                         IsChecked="{Binding Sources.DataSource, Mode=TwoWay, Converter={StaticResource StyleIs}, ConverterParameter=overlay}" />
+                        </StackPanel>
+
+                        <TextBlock Text="pak 文件（留空则用 pak 目录下最大的 .pak）" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="PakFileBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.PakPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=PakFileBox}" Click="OnBrowseFile" />
+                        </Grid>
+
+                        <TextBlock Text="pak 内对应 /Game 的前缀（KARDS 是 kards/Content）" Style="{StaticResource FieldLabel}" />
+                        <TextBox Style="{StaticResource FieldBox}" Margin="0,0,0,10"
+                                 Text="{Binding Sources.ContentPrefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="路径" Style="{StaticResource SectionTitle}" />
                         <TextBlock Style="{StaticResource Hint}"
                                    Text="这些路径决定「资产从哪来」。留空则按 KARDS 默认值补；AES key 不写在这里，只写「从哪读」。" />
 

@@ -23,6 +23,15 @@ public sealed class GameProfile
     public string? AesKeyHex { get; init; }
     public string? AesKeySource { get; init; }
 
+    /// <summary>数据源：<c>dir</c> / <c>pak</c> / <c>overlay</c>（见 <see cref="SourcesSettings.DataSource"/>）。</summary>
+    public string DataSource { get; init; } = "dir";
+
+    /// <summary>pak 文件路径（含文件名）。</summary>
+    public string? PakPath { get; init; }
+
+    /// <summary>pak 内对应 <c>/Game</c> 的前缀。</summary>
+    public string ContentPrefix { get; init; } = "kards/Content";
+
     public const string DefaultKardsGameDir = @"D:\files\projects\kards";
     public const string DefaultKardsExports = @"D:\devenv\fmodel\Output\Exports\kards\Content";
     public const string FmodelSettingsPath = @"%APPDATA%\FModel\AppSettings.json";
@@ -54,10 +63,30 @@ public sealed class GameProfile
             AssetRegistryPath = sources.AssetRegistryPath,
             AesKeyHex = key,
             AesKeySource = keySource,
+            DataSource = string.IsNullOrWhiteSpace(sources.DataSource) ? "dir" : sources.DataSource.Trim().ToLowerInvariant(),
+            PakPath = ResolvePakPath(sources, pakDir),
+            ContentPrefix = string.IsNullOrWhiteSpace(sources.ContentPrefix) ? "kards/Content" : sources.ContentPrefix.Trim(),
         };
     }
 
     /// <summary>jmap 产物（functions.json）的默认位置；没有就返回 null，不猜。</summary>
+    /// <summary>
+    /// 解析 pak 文件路径：配置里写了就用；没写就在 pak 目录里挑最大的 <c>.pak</c>。
+    /// 挑最大而不是第一个——KARDS 的 pak 目录里还有个 0.1 MB 的 <c>wide-mount.pak</c>，
+    /// 按名字/顺序取会取到它，表现为「索引里几乎没有资产」。
+    /// </summary>
+    private static string? ResolvePakPath(SourcesSettings sources, string? pakDirectory)
+    {
+        if (!string.IsNullOrWhiteSpace(sources.PakPath) && File.Exists(sources.PakPath))
+            return sources.PakPath;
+
+        if (pakDirectory is null || !Directory.Exists(pakDirectory)) return null;
+
+        return Directory.GetFiles(pakDirectory, "*.pak")
+            .OrderByDescending(f => new FileInfo(f).Length)
+            .FirstOrDefault();
+    }
+
     private static string? DefaultJmap()
     {
         var candidate = @"D:\files\projects\jmap-out\functions.json";
@@ -146,4 +175,5 @@ public sealed class GameProfile
         return (null, null);
     }
 }
+
 

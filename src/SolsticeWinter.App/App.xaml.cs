@@ -105,6 +105,44 @@ public partial class App : Application
                 return;
             }
 
+            if (e.Args.Length >= 2 && e.Args[0] == "--check-source")
+            {
+                // 端到端验证「数据源 → 读字节 → 反编译」这条路。
+                // 第二个参数可选：dir / pak / overlay，用来临时覆盖设置里的数据源（不写盘）。
+                try
+                {
+                    var settings = SolsticeWinter.Core.StudioSettings.Load(
+                        SolsticeWinter.Core.StudioSettings.DefaultPath(FindRepoRoot() ?? Path.GetTempPath()));
+
+                    if (e.Args.Length >= 3) settings.Sources.DataSource = e.Args[2];
+
+                    var profile = SolsticeWinter.Core.GameProfile.FromSettings(settings);
+                    var source = Graph.AssetAccess.SourceFor(profile);
+                    var paths = source.EnumerateVirtualPaths();
+
+                    Console.WriteLine($"mode={profile.DataSource} pak={profile.PakPath ?? "(无)"}");
+                    Console.WriteLine($"source={source.Name}");
+                    Console.WriteLine($"assets={paths.Count}");
+
+                    var workspace = Graph.AssetAccess.OpenWorkspace(profile, e.Args[1]);
+                    var asset = Graph.AssetAccess.GetAsset(workspace);
+                    var functions = asset is null
+                        ? -1
+                        : asset.Exports.OfType<UAssetAPI.ExportTypes.FunctionExport>().Count();
+
+                    Console.WriteLine($"open {e.Args[1]}: functions={functions} names={workspace.Functions.Count}");
+                    Environment.ExitCode = 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"FAIL: {ex.GetType().Name}: {ex.Message}");
+                    Environment.ExitCode = 1;
+                }
+
+                Shutdown(Environment.ExitCode);
+                return;
+            }
+
             if (e.Args.Length >= 2 && e.Args[0] == "--check-local")
             {
                 // 验证「从本地打开」这条路：直接读一个 .uasset（不走索引、不走导出目录）。
