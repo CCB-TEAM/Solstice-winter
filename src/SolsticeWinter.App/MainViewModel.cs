@@ -250,6 +250,78 @@ public sealed class MainViewModel : INotifyPropertyChanged
         SelectedFunction = Functions.FirstOrDefault();
     }
 
+    /// <summary>
+    /// 从**本地文件**打开资产（文件菜单「从本地打开」）。
+    ///
+    /// <para>
+    /// 与 <see cref="OpenAsset"/> 的区别：不走索引。资产不在导出目录里也能开，
+    /// 函数列表直接从 <c>UAsset</c> 的导出表枚举（索引那套在这里没有条目可用）。
+    /// </para>
+    ///
+    /// <para>
+    /// 代价：签名/变量类型仍按名字查索引，查不到就退回 `argN` 和 Unknown 类型。
+    /// 这是数据缺失，不是打开方式的缺陷——把文件放进导出目录再从 VFS 开即可恢复。
+    /// </para>
+    /// </summary>
+    public void OpenLocalAsset(string uassetPath)
+    {
+        if (CurrentAsset.Length > 0) _back.Push((CurrentAsset, string.Empty));
+
+        // 虚拟路径只是显示用的占位：本地文件没有 /Game 路径
+        var virtualPath = "/Game/" + Path.GetFileNameWithoutExtension(uassetPath);
+
+        Functions.Clear();
+        Events.Clear();
+        Nodes.Clear();
+        Connections.Clear();
+
+        KismetWorkspace workspace;
+        try
+        {
+            workspace = AssetAccess.OpenWorkspaceFromFile(Profile, uassetPath);
+        }
+        catch (Exception e)
+        {
+            Status = $"本地打开失败：{e.Message}";
+            UiLog.Write($"OpenLocalAsset 失败 {uassetPath}: {e.GetType().Name}: {e.Message}");
+            return;
+        }
+
+        _workspaces[virtualPath] = workspace;
+        CurrentAsset = virtualPath;
+
+        Functions.Add(new FunctionItem("事件图", 0, 0, IsEventGraph: true));
+
+        if (AssetAccess.GetAsset(workspace) is { } asset)
+        {
+            foreach (var export in asset.Exports.OfType<UAssetAPI.ExportTypes.FunctionExport>()
+                         .Where(f => f.ScriptBytecode is { Length: > 0 })
+                         .OrderBy(f => f.ObjectName?.ToString(), StringComparer.Ordinal))
+            {
+                // `LoadedProperties` 是 IEnumerable<Property>：`Count` 只是 LINQ 扩展方法，
+                // 写成 `.Count` 会被当成方法组（CS0173/CS8978）。用 `.Count()`。
+                var parameterCount = export.LoadedProperties is { } loaded ? loaded.Count() : 0;
+
+                Functions.Add(new FunctionItem(
+                    export.ObjectName?.ToString() ?? "?",
+                    export.ScriptBytecode?.Length ?? 0,
+                    parameterCount));
+            }
+        }
+        else
+        {
+            // 反射拿不到 UAsset 时退回工作区的函数名（少了大小信息，但不至于空列表）
+            foreach (var name in workspace.Functions.OrderBy(n => n, StringComparer.Ordinal))
+                Functions.Add(new FunctionItem(name, 0, 0));
+        }
+
+        OnPropertyChanged(nameof(CanGoBack));
+        Status = $"{Path.GetFileName(uassetPath)}（本地）：{Functions.Count - 1} 个函数";
+        UiLog.Write($"OpenLocalAsset {uassetPath} → {virtualPath}: 函数 {Functions.Count - 1} 个");
+
+        SelectedFunction = Functions.FirstOrDefault();
+    }
+
     public bool GoBack()
     {
         if (_back.Count == 0) return false;
@@ -616,6 +688,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
         if (SelectedEvent is not null) RenderEvent(SelectedEvent);
         Status = "设置已应用";
+    }
+
+    /// <summary>
+    /// 用设置窗口编辑好的副本替换当前设置。窗口里改的是 <see cref="StudioSettings.Clone"/> 出来的副本，
+    /// 点「取消」时这份替换就不会发生——所以这里只负责「接管 + 落盘 + 重排」。
+    /// </summary>
+    public void ReplaceSettings(StudioSettings replacement)
+    {
+        Settings = replacement;
+        ApplySettings();
     }
 
     public void ReloadSettings()

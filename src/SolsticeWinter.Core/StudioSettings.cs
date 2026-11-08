@@ -56,6 +56,14 @@ public sealed class StudioSettings
         }
     }
 
+    /// <summary>
+    /// 深拷贝。设置窗口要在**副本**上编辑——点「取消」时原对象必须原封不动，
+    /// 否则取消就变成了「只撤销一部分」（各子对象是引用类型，浅拷贝会把它们一起改掉）。
+    /// </summary>
+    public StudioSettings Clone() =>
+        JsonSerializer.Deserialize<StudioSettings>(
+            JsonSerializer.Serialize(this, JsonOptions), JsonOptions) ?? new StudioSettings();
+
     public void Save(string path)
     {
         var dir = Path.GetDirectoryName(Path.GetFullPath(path));
@@ -134,8 +142,6 @@ public sealed class DisplaySettings
     /// <summary>字号（节点标题与引脚共用）。</summary>
     public double FontSize { get; set; } = 12;
 
-    /// <summary>网格显示。</summary>
-    public bool ShowGrid { get; set; } = true;
 
     /// <summary>
     /// 用新反编译器（移植的 UEBlueprintGraphViewer）还是旧的 AST 投影。
@@ -143,5 +149,6 @@ public sealed class DisplaySettings
     /// </summary>
     public bool UseNewDecompiler { get; set; } = true;
 }
+
 
 

@@ -125,6 +125,38 @@ public static class AssetAccess
         asset.Exports.OfType<UAssetAPI.ExportTypes.FunctionExport>()
             .FirstOrDefault(e => e.ObjectName?.ToString() == name);
 
+    /// <summary>
+    /// 从**本地磁盘**直接打开一个 <c>.uasset</c>（文件菜单「从本地打开」走这里）。
+    ///
+    /// <para>
+    /// 和 <see cref="OpenWorkspace"/> 的区别只有「路径怎么来」：拿绝对路径，不需要资产在
+    /// 导出目录里、也不需要索引条目。**.uexp 是必需的**——cooked 资产把大部分数据放在 uexp 里。
+    /// </para>
+    ///
+    /// <para>
+    /// 签名仍按文件名查索引：查不到时函数列表由字节码自己给出，参数名退回 `argN`
+    /// （这是数据缺失，不是打开方式的问题）。
+    /// </para>
+    /// </summary>
+    public static KismetWorkspace OpenWorkspaceFromFile(GameProfile profile, string uassetPath)
+    {
+        if (!File.Exists(uassetPath)) throw new FileNotFoundException($"文件不存在：{uassetPath}");
+
+        var uexpPath = Path.ChangeExtension(uassetPath, ".uexp");
+        if (!File.Exists(uexpPath))
+            throw new FileNotFoundException($"同目录下缺少 .uexp：{uexpPath}");
+
+        var usmapPath = profile.UsmapPath ?? throw new InvalidOperationException("profile 里没有 usmap");
+        var uasset = File.ReadAllBytes(uassetPath);
+        var uexp = File.ReadAllBytes(uexpPath);
+        var usmap = File.ReadAllBytes(usmapPath);
+
+        var assetName = Path.GetFileNameWithoutExtension(uassetPath) + "-loc" +
+                        (uint)uassetPath.GetHashCode(StringComparison.OrdinalIgnoreCase);
+
+        return OpenWorked(assetName, uasset, uexp, usmap);
+    }
+
     public static KismetWorkspace OpenWorkspace(GameProfile profile, string virtualPath)
     {
         var uassetPath = ExportPathFor(profile, virtualPath);
@@ -138,6 +170,12 @@ public static class AssetAccess
         var assetName = Path.GetFileNameWithoutExtension(uassetPath) + "-" +
                         (uint)virtualPath.GetHashCode(StringComparison.Ordinal);
 
+        return OpenWorked(assetName, uasset, uexp, usmap);
+    }
+
+    /// <summary>「字节 → 工作目录 → KismetWorkspace」的共用部分（两条打开路径都走它）。</summary>
+    private static KismetWorkspace OpenWorked(string assetName, byte[] uasset, byte[] uexp, byte[] usmap)
+    {
         var errors = new List<string>();
 
         foreach (var root in WorkRoots)

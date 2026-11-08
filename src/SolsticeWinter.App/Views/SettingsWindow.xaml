@@ -1,0 +1,235 @@
+<Window x:Class="SolsticeWinter.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:SolsticeWinter.App.Converters"
+        Title="设置"
+        Height="620" Width="780"
+        MinHeight="480" MinWidth="640"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Chrome.Background}"
+        Foreground="{StaticResource Chrome.Foreground}">
+
+    <!--
+      形态参考 FModel 的 Settings：顶部标签页分「通用 / 显示 / 布局」，
+      底部 应用 / 确定 / 取消。改的是 StudioSettings 的**副本**，取消即丢弃。
+    -->
+    <Window.Resources>
+        <conv:StyleIsConverter x:Key="StyleIs" />
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource Chrome.PanelAlt}" />
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Foreground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Chrome.Border}" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="FieldCheck" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Foreground}" />
+            <Setter Property="Margin" Value="0,4" />
+        </Style>
+
+        <Style x:Key="FieldRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Foreground}" />
+            <Setter Property="Margin" Value="0,0,16,0" />
+        </Style>
+
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Chrome.ForegroundDim}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,10" />
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Foreground}" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Accent}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,12,0,8" />
+        </Style>
+
+        <Style x:Key="DialogButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Chrome.PanelAlt}" />
+            <Setter Property="Foreground" Value="{StaticResource Chrome.Foreground}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Chrome.Border}" />
+            <Setter Property="Padding" Value="18,6" />
+            <Setter Property="MinWidth" Value="86" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+        </Style>
+
+        <!-- 一行：文本框 + 浏览按钮 -->
+        <Style x:Key="PathRow" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- 底部按钮条 -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Chrome.PanelAlt}"
+                BorderBrush="{StaticResource Chrome.Border}" BorderThickness="0,1,0,0" Padding="12,10">
+            <Grid>
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center"
+                           Foreground="{StaticResource Chrome.ForegroundDim}" FontSize="11" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="ApplyButton" Content="应用" Style="{StaticResource DialogButton}" Click="OnApply" />
+                    <Button Content="确定" Style="{StaticResource DialogButton}" Click="OnOk" IsDefault="True" />
+                    <Button Content="取消" Style="{StaticResource DialogButton}" Click="OnCancel" IsCancel="True" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Background="{StaticResource Chrome.Panel}" BorderThickness="0" Margin="8">
+
+            <!-- ── 通用：数据源 ─────────────────────────────── -->
+            <TabItem Header="通用">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="数据源" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="这些路径决定「资产从哪来」。留空则按 KARDS 默认值补；AES key 不写在这里，只写「从哪读」。" />
+
+                        <TextBlock Text="导出目录（对应 /Game/ 的内容根）" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ExportBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.ExportDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=ExportBox}" Click="OnBrowseFolder" />
+                        </Grid>
+
+                        <TextBlock Text="usmap 路径（结构体/枚举 schema；留空则从 pak 目录里找 *.usmap）"
+                                   Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="UsmapBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.UsmapPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=UsmapBox}" Click="OnBrowseFile" />
+                        </Grid>
+
+                        <TextBlock Text="jmap functions.json（/Script 函数签名；可选）" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="JmapBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.JmapPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=JmapBox}" Click="OnBrowseFile" />
+                        </Grid>
+
+                        <TextBlock Text="AssetRegistry.bin（资产目录；可选）" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="RegistryBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.AssetRegistryPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=RegistryBox}" Click="OnBrowseFile" />
+                        </Grid>
+
+                        <TextBlock Text="pak 目录（可选；留空则用游戏目录下的 Paks）" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="PakBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.PakDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=PakBox}" Click="OnBrowseFolder" />
+                        </Grid>
+
+                        <TextBlock Text="游戏目录" Style="{StaticResource FieldLabel}" />
+                        <Grid Style="{StaticResource PathRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="GameBox" Grid.Column="0" Style="{StaticResource FieldBox}"
+                                     Text="{Binding Sources.GameDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <Button Grid.Column="1" Content="浏览…" Style="{StaticResource DialogButton}"
+                                    Margin="8,0,0,0" Tag="{Binding ElementName=GameBox}" Click="OnBrowseFolder" />
+                        </Grid>
+
+                        <TextBlock Text="AES key 来源（fmodel = 读 FModel 配置；env:NAME = 读环境变量）"
+                                   Style="{StaticResource FieldLabel}" />
+                        <TextBox Style="{StaticResource FieldBox}" Margin="0,0,0,10"
+                                 Text="{Binding Sources.AesKeySource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ── 显示 ─────────────────────────────────────── -->
+            <TabItem Header="显示">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="节点标题" Style="{StaticResource SectionTitle}" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="美化（去掉 Get_/Set_ 前缀）" Style="{StaticResource FieldRadio}"
+                                         IsChecked="{Binding Display.TitleStyle, Mode=TwoWay, Converter={StaticResource StyleIs}, ConverterParameter=pretty}" />
+                            <RadioButton Content="内部名（反编译器原名）" Style="{StaticResource FieldRadio}"
+                                         IsChecked="{Binding Display.TitleStyle, Mode=TwoWay, Converter={StaticResource StyleIs}, ConverterParameter=raw}" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Hint}" Text="改完点「应用」立即重排当前图，不需要重启。" />
+
+                        <TextBlock Text="引脚" Style="{StaticResource SectionTitle}" />
+                        <CheckBox Content="在引脚上显示类型名（object / int / bool…）" Style="{StaticResource FieldCheck}"
+                                  IsChecked="{Binding Display.ShowPinTypes, Mode=TwoWay}" />
+
+                        <TextBlock Text="字号（节点标题与引脚共用）" Style="{StaticResource SectionTitle}" />
+                        <TextBox Style="{StaticResource FieldBox}" Width="120" HorizontalAlignment="Left"
+                                 Text="{Binding Display.FontSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="反编译器" Style="{StaticResource SectionTitle}" />
+                        <CheckBox Content="使用新反编译器（UE 式节点）；取消勾选则退回旧的平坦投影"
+                                  Style="{StaticResource FieldCheck}"
+                                  IsChecked="{Binding Display.UseNewDecompiler, Mode=TwoWay}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="旧投影只用于对比排查，节点形态与 UE 编辑器差别较大。" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ── 布局 ─────────────────────────────────────── -->
+            <TabItem Header="布局">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="14">
+                    <StackPanel>
+                        <TextBlock Text="旧投影的排布参数" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Hint}"
+                                   Text="注意：这三项只对「旧投影」生效（在上面「显示」里取消勾选新反编译器）。新反编译器用 Sugiyama 分层布局，参数固定在代码里。" />
+
+                        <TextBlock Text="列宽（exec 链每步的横向间距）" Style="{StaticResource FieldLabel}" />
+                        <TextBox Style="{StaticResource FieldBox}" Width="120" HorizontalAlignment="Left" Margin="0,0,0,10"
+                                 Text="{Binding Layout.ColumnWidth, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="行高（分支上下分叉的行间距）" Style="{StaticResource FieldLabel}" />
+                        <TextBox Style="{StaticResource FieldBox}" Width="120" HorizontalAlignment="Left" Margin="0,0,0,10"
+                                 Text="{Binding Layout.RowHeight, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="数据节点纵向偏移（负数往上）" Style="{StaticResource FieldLabel}" />
+                        <TextBox Style="{StaticResource FieldBox}" Width="120" HorizontalAlignment="Left"
+                                 Text="{Binding Layout.DataOffsetY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+
+                        <TextBlock Text="配置文件" Style="{StaticResource SectionTitle}" />
+                        <TextBlock x:Name="SettingsPathText" Style="{StaticResource Hint}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
+
+

@@ -309,3 +309,84 @@ Display:
 **边界与失败**：`Size` 为 0 的函数不会进入列表（列表只收 `HasBytecode == true`，而它由 `ScriptBytecode.Length > 0` 推出）；委托签名函数（`*__DelegateSignature`）会出现，`Size` 通常是 3。
 
 **调用者与被调用者**：由 `MainViewModel.LoadFunctionsAsync` 构造；被 `AutoSelect` 之后的自动挑选（读 `Size`）、`LoadGraphAsync`（读 `Name` / `Size` / `Params`）、`MainWindow.xaml`（`DisplayMemberPath="Display"`、标题行 `SelectedFunction.Name`）使用。不调用其它函数。
+
+---
+
+### `MainViewModel.OpenLocalAsset(string uassetPath): void` ✅ 已实现
+
+**签名与契约**
+从本地文件打开资产（文件菜单「从本地打开」）。**不走索引**：函数列表直接从 `UAsset`
+的导出表枚举。副作用：清空四个集合、替换 `CurrentAsset`、往 `_workspaces` 缓存里塞一条、
+写 `UiLog`。
+
+**输入输出**
+- `uassetPath`：`.uasset` 绝对路径。
+- 成功：`Functions[0]` 是「事件图」，其后是每个有字节码的函数导出（按名字排序）；
+  `SelectedFunction` 指向第一项；`Status` 形如 `BP_Logic.uasset（本地）：181 个函数`。
+- 失败（打不开）：`Status` 变成 `本地打开失败：<原因>`，`Functions` 保持空，不抛异常。
+
+**关键分支（伪代码）**
+
+```
+if CurrentAsset 非空: 压返回栈
+virtualPath = "/Game/" + 文件名（占位，本地文件没有真 /Game 路径）
+清空 Functions / Events / Nodes / Connections
+
+try: workspace = AssetAccess.OpenWorkspaceFromFile(Profile, uassetPath)
+catch: Status = 失败原因; 记日志; return          // 不让异常冒到 UI 线程
+
+_workspaces[virtualPath] = workspace              // 后续 GetWorkspace 直接命中缓存
+CurrentAsset = virtualPath
+Functions += 事件图
+if GetAsset(workspace) 成功:
+    Functions += 有字节码的 FunctionExport（名字 / 字节码长度 / 参数个数）
+else:
+    Functions += workspace.Functions             // 反射失败时的兜底，少了大小信息
+SelectedFunction = Functions.FirstOrDefault()
+```
+
+**边界与失败**
+- 文件缺 `.uexp`：`OpenWorkspaceFromFile` 抛 `FileNotFoundException`，这里转成状态文字。
+  菜单层在此之前会弹一次确认框（`MainWindow.OnOpenFromLocal`）。
+- 索引里没有该资产时签名查不到 → 参数名退回 `argN`、类型显示 Unknown；**图本身是完整的**。
+- 与 `OpenAsset` 的 `virtualPath` 语义不同：这里是显示用占位，同名不同目录的两个文件会算成同一个 key
+  （`-loc` + 路径哈希只作用于**工作目录**，不作用于这个 key）。已知限制。
+
+**调用者与被调用者**
+- 调用者：`MainWindow.OnOpenFromLocal`
+- 被调用者：`AssetAccess.OpenWorkspaceFromFile`、`AssetAccess.GetAsset`、`SaveSettingsQuietly`（未调用）
+
+---
+
+### `MainViewModel.ReplaceSettings(StudioSettings replacement): void` ✅ 已实现
+
+**签名与契约**
+用设置窗口编辑好的副本替换当前设置，并立即落盘 + 重排当前图。
+副作用：替换 `Settings`、重建 `Profile`、写配置文件、重渲染 `SelectedEvent`。
+
+**输入输出**
+- `replacement`：调用方应传**副本**（`SettingsWindow` 内部传的是自己的编辑副本）。
+- 无返回值；`Status` 变成「设置已应用」。
+
+**关键分支（伪代码）**
+
+```
+Settings = replacement
+ApplySettings()        // Profile = FromSettings(Settings); Save; 重渲染
+```
+
+**边界与失败**
+- 落盘失败被 `SaveSettingsQuietly` 吞掉（配置写不进去不该让工具不可用）。
+- 传入的对象若被调用方继续持有并修改，会直接影响已应用的设置 —— 所以 `MainWindow` 传 `result.Clone()`。
+
+**调用者与被调用者**
+- 调用者：`MainWindow.OnOpenSettingsWindow`（「应用」事件与「确定」结果）
+- 被调用者：`ApplySettings`
+
+---
+
+### `MainViewModel.OpenAsset(string virtualPath, bool pushBack = false): void` — 补充说明
+
+⚠️ **与 `OpenLocalAsset` 的分工**：`OpenAsset` 依赖 `_index.Find(virtualPath)`，
+索引里没有就只把 `Status` 改成「索引里没有 …」并返回（函数列表为空）。
+「从 VFS 打开」走它，「从本地打开」走 `OpenLocalAsset`，两者不能互换。

@@ -17,11 +17,22 @@
         <Menu DockPanel.Dock="Top" Background="{StaticResource Chrome.PanelAlt}"
               Foreground="{StaticResource Chrome.Foreground}">
             <MenuItem Header="文件(_F)">
+                <!--
+                  两种打开方式，对应两套数据源：
+                    · 从 VFS 打开 → 走索引（导出目录 / pak），有函数签名、变量类型
+                    · 从本地打开 → 直接选一个 .uasset，不需要它在导出目录里
+                -->
+                <MenuItem Header="从 VFS 打开…" InputGestureText="Ctrl+O" Click="OnOpenFromVfs" />
+                <MenuItem Header="从本地打开…" InputGestureText="Ctrl+Shift+O" Click="OnOpenFromLocal" />
+                <Separator />
+                <MenuItem Header="设置…" Click="OnOpenSettingsWindow" />
+                <Separator />
                 <MenuItem Header="退出" Click="OnExit" />
             </MenuItem>
 
             <MenuItem Header="资产(_A)" x:Name="AssetMenu" SubmenuOpened="OnAssetMenuOpened">
-                <MenuItem Header="打开…" InputGestureText="Ctrl+O" Click="OnOpenAsset" />
+                <MenuItem Header="从 VFS 打开…" Click="OnOpenFromVfs" />
+                <MenuItem Header="从本地打开…" Click="OnOpenFromLocal" />
                 <Separator />
                 <MenuItem Header="（最近）" IsEnabled="False" x:Name="RecentPlaceholder" />
             </MenuItem>
@@ -29,14 +40,6 @@
             <MenuItem Header="视图(_V)">
                 <MenuItem Header="返回" InputGestureText="Alt+Left" Click="OnBack" x:Name="BackItem" />
                 <MenuItem Header="重置视图" Click="OnResetView" />
-                <Separator />
-                <MenuItem Header="字号 +" Click="OnFontUp" />
-                <MenuItem Header="字号 −" Click="OnFontDown" />
-                <Separator />
-                <MenuItem Header="标题：美化" Click="OnTitlePretty" />
-                <MenuItem Header="标题：内部名" Click="OnTitleRaw" />
-                <Separator />
-                <MenuItem Header="重新加载设置" Click="OnReloadSettings" />
             </MenuItem>
 
             <MenuItem Header="帮助(_H)">

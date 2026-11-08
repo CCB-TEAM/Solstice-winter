@@ -136,3 +136,73 @@ for root in 两个工作根:
 
 **调用者与被调用者**：被 `App.OnStartup` 调用；调用 `Directory.GetDirectories`、`Process.GetProcessById`、`Directory.Delete`。
 
+
+---
+
+### `AssetAccess.OpenWorkspaceFromFile(GameProfile profile, string uassetPath): KismetWorkspace` ✅ 已实现
+
+**签名与契约**
+从**绝对路径**打开一个 cooked 资产，不经过索引、不要求它在导出目录里。
+副作用：读 `.uasset` / `.uexp` / usmap 三份字节；在工作目录里建目录并写文件。
+
+**输入输出**
+- `uassetPath`：`.uasset` 的绝对路径；同目录必须有同名 `.uexp`（cooked 资产的数据主体）。
+- `profile.UsmapPath`：必须非空，否则抛 `InvalidOperationException("profile 里没有 usmap")`。
+- 返回：可用的 `KismetWorkspace`；工作目录全部不可写时抛 `IOException`（消息里带每个候选目录的失败原因）。
+
+**关键分支（伪代码）**
+
+```
+if not File.Exists(uassetPath):          throw FileNotFoundException(文件不存在)
+uexpPath = ChangeExtension(.uexp)
+if not File.Exists(uexpPath):            throw FileNotFoundException(同目录下缺少 .uexp)
+usmapPath = profile.UsmapPath ?? throw
+assetName = 文件名 + "-loc" + hash(uassetPath)     // 与 VFS 路径的工作目录分开，避免撞名
+return OpenWorked(assetName, uasset, uexp, usmap)
+```
+
+**边界与失败**
+- 缺 `.uexp` → 直接抛错；UI 侧在弹文件框后会先检查一次并让用户确认（缺了只会解析出空包）。
+- 索引里没有这个资产 → **不报错**：函数列表由 `UAsset` 的导出表给出。
+  代价是签名/变量类型按文件名查不到，退回 `argN` 与 Unknown（数据缺失，不是打开方式的问题）。
+- 与 VFS 路径用不同的 `assetName` 前缀（`-loc`），两条路打开同名文件不会抢同一个工作目录。
+
+**调用者与被调用者**
+- 调用者：`MainViewModel.OpenLocalAsset`；探针 `--check-local`
+- 被调用者：`OpenWorked`
+
+---
+
+### `AssetAccess.OpenWorked(string assetName, byte[] uasset, byte[] uexp, byte[] usmap): KismetWorkspace` 🚧 私有
+
+**签名与契约**
+两条打开路径（VFS / 本地）共用的「字节 → 工作目录 → `KismetWorkspace`」。
+副作用：按 `WorkRoots` 顺序尝试建目录、写探针文件、调 `KismetWorkspace.Open`。
+
+**输入输出**
+- `assetName`：工作子目录名，调用方负责加哈希防撞。
+- 三个字节数组原样传给 `KismetWorkspace.Open`。
+- 返回：第一个能写成功的工作目录建出的 workspace。
+- 全部失败：抛 `IOException`，消息里拼接每个候选目录的异常。
+
+**关键分支（伪代码）**
+
+```
+foreach root in WorkRoots:
+  foreach suffix in ["", "-" + 随机6位]:          // PID 复用会留下旧锁，第二次换名
+    try:
+      CreateDirectory(root/assetName+suffix)
+      写探针 .writable 再删掉                     // 提前暴露只读/被锁
+      return KismetWorkspace.Open(uasset, uexp, usmap, work)
+    catch UnauthorizedAccess|IO: 记录并继续
+throw IOException(汇总)
+```
+
+**边界与失败**
+- 探针文件的意义：`Directory.CreateDirectory` 对「存在但被拒写」的目录不报错，要等真正写文件才炸，
+  那时错误已经离开现场。
+- `%TEMP%` / `%LOCALAPPDATA%` 候选常被沙箱打上拒绝 ACE，首选仓库内 `.cache\work`。
+
+**调用者与被调用者**
+- 调用者：`OpenWorkspace`、`OpenWorkspaceFromFile`
+- 被调用者：`KismetWorkspace.Open`

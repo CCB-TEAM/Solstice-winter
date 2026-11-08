@@ -171,3 +171,71 @@ Border(row1) → Grid[ *, Auto ]
 - ⛔ 没有进度指示（没有 `ProgressBar`、没有忙碌光标）：加载索引的几百毫秒里界面只显示一行字。
 
 **调用者与被调用者**：被 `InitializeComponent` 解析；读 `MainViewModel.Status` / `Diagnostics`。
+
+---
+
+### 菜单结构（本轮改动）
+
+```
+文件  从 VFS 打开… (Ctrl+O)       → OnOpenFromVfs   （索引 / 导出目录，带签名）
+      从本地打开… (Ctrl+Shift+O)  → OnOpenFromLocal （直接选 .uasset，不走索引）
+      ────
+      设置…                      → OnOpenSettingsWindow
+      ────
+      退出
+资产  从 VFS 打开… / 从本地打开… / （最近 5 项，展开时重建）
+视图  返回 (Alt+Left) / 重置视图
+帮助  打开日志 / 打开配置文件 / 关于
+```
+
+**为什么把「字号」「标题风格」「重新加载设置」从视图菜单删掉**：
+它们都是**配置项**，现在统一由设置窗口改。两处都能改会让人分不清哪个生效，
+而设置窗口有「应用/取消」的明确语义。
+
+**为什么文件菜单和资产菜单都放两个打开入口**：
+「文件」是新用户会点的地方，「资产」是切资产时顺手的地方。
+两处指向同一对处理器，不存在走不同代码的问题。
+
+### `MainWindow.OnOpenFromLocal(object sender, RoutedEventArgs e)` ✅ 已实现
+
+**签名与契约**
+弹 `OpenFileDialog` 选 `.uasset`，检查同目录 `.uexp` 是否存在，缺了先确认，再调
+`MainViewModel.OpenLocalAsset`。副作用：可能弹一个确认 `MessageBox`、切换当前资产。
+
+**关键分支（伪代码）**
+
+```
+if 用户取消: return
+if not File.Exists(同目录 .uexp):
+    弹「缺少 .uexp，仍然尝试打开吗？」→ 选否就 return
+_viewModel.OpenLocalAsset(dialog.FileName)
+```
+
+**边界与失败**
+打开失败不在这里报错——`OpenLocalAsset` 把原因写进 `Status`，菜单层只负责选文件。
+
+**调用者与被调用者**
+- 调用者：XAML 两处菜单项
+- 被调用者：`MainViewModel.OpenLocalAsset`
+
+### `MainWindow.OnOpenSettingsWindow(object sender, RoutedEventArgs e)` ✅ 已实现
+
+**签名与契约**
+打开 `SettingsWindow`（模态）。订阅 `Applied`（「应用」不关窗，立即生效），
+`ShowDialog() == true` 时再用 `Result` 应用一次。副作用：可能写配置文件并重排图。
+
+**关键分支（伪代码）**
+
+```
+window = new SettingsWindow(_viewModel.Settings, _viewModel.SettingsPath)
+window.Applied += (_, s) => _viewModel.ReplaceSettings(s.Clone())
+if window.ShowDialog() == true and window.Result is { } result:
+    _viewModel.ReplaceSettings(result)
+```
+
+**边界与失败**
+「应用」已应用过一次后再点「确定」会再应用一次（幂等：只是重新落盘 + 重排）。
+
+**调用者与被调用者**
+- 调用者：文件菜单「设置…」
+- 被调用者：`SettingsWindow`、`MainViewModel.ReplaceSettings`

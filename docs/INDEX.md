@@ -3333,3 +3333,67 @@ git -c "http.https://github.com/.proxy=" -c "https.https://github.com/.proxy=" p
 ```
 
 仓库地址：https://github.com/CCB-TEAM/Solstice-winter
+
+### 重写里程碑 38：设置窗口 + 两条打开路径（全量诊断第七十五轮）
+
+按 FModel 的设置形态重做配置入口，并把「打开」拆成两条数据源不同的路。
+
+**1. 设置窗口 `Views/SettingsWindow`**
+
+FModel 的设置是**带标签页的模态对话框**（General / Models / Keybindings），
+点主窗口左上角的 *Settings* 进入，配置存 JSON。这里照这个形态做：
+
+| 标签页 | 内容 |
+|---|---|
+| 通用 | 数据源七项：导出目录 / usmap / jmap / registry / pak 目录 / 游戏目录 / AES 来源（每项带「浏览…」） |
+| 显示 | 标题风格（单选）、显示引脚类型、字号、新反编译器开关 |
+| 布局 | 旧投影的列宽 / 行高 / 数据偏移（**标注了「仅旧投影生效」**）+ 配置文件路径 |
+
+底部 **应用 / 确定 / 取消**。编辑的是 `StudioSettings.Clone()` 出来的**副本**，
+取消即丢弃。原来的「视图」菜单里字号增减、标题美化/内部名、重新加载设置**已删除**——
+配置只有设置窗口一个入口。
+
+**2. 文件菜单拆两个打开入口**
+
+```
+从 VFS 打开… (Ctrl+O)       → 索引/导出目录，带函数签名与变量类型
+从本地打开… (Ctrl+Shift+O)  → 直接选 .uasset，不走索引
+```
+
+`--check-local` 端到端验证：`BP_Logic.uasset` → **181 个函数**、`BP_CardFunctions.uasset` → **294 个**，
+与 VFS 路径完全一致。
+
+**3. 顺带清掉一个死配置**
+
+`Display.ShowGrid` 在代码里**零引用**（网格由 `GraphView.xaml` 的 `Background` 决定），
+设置窗口里也没放它——本轮从 `StudioSettings` 删除。留一个无效开关比少一个开关更误导。
+
+**取舍**
+
+| 决定 | 理由 | 代价 |
+|---|---|---|
+| 编辑副本而不是直接改 | 子对象是引用类型，浅拷贝会让「取消」变成「撤销一部分」 | 一次 JSON 往返 |
+| `DataContext` 直接指向副本 | 省掉一堆包装属性 | 窗口只能做字段编辑，联动要另写 ViewModel |
+| 数值框 `UpdateSourceTrigger=PropertyChanged` | `LostFocus` 会吞掉「点应用前最后编辑的那个数字」 | 输入中间态也会写进模型 |
+| 「从本地打开」不查索引 | 资产不必在导出目录里 | 签名查不到 → `argN` / Unknown 类型 |
+
+`AssetAccess.OpenWorkspace` 重构：把「字节 → 工作目录 → workspace」抽成 `OpenWorked`，
+两条打开路径共用一份，避免工作目录候选/探针那套逻辑抄两遍。
+
+**新增验证命令**
+
+| 命令 | 作用 |
+|---|---|
+| `--check-settings` | 真的构造一遍设置窗口：XAML 解析、StaticResource、转换器实例化都在这里炸，构建通过不代表能加载 |
+| `--check-local <路径>` | 走「从本地打开」的真实路径，打印函数个数 |
+
+**回归**
+
+```
+--check-settings                      设置窗口构造成功（退出码 0）
+--check-local BP_Logic.uasset          functions=181
+--check-local BP_CardFunctions.uasset  functions=294
+--validate 两个资产                     八条规则全部通过
+--check-all 两个资产                    475 函数：空图 0 / 渲染失败 0 / 数量不一致 0 / 布局回退 0
+UI --open                             17 节点 / 22 连线，零绑定错误
+```

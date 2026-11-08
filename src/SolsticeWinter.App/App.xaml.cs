@@ -105,6 +105,60 @@ public partial class App : Application
                 return;
             }
 
+            if (e.Args.Length >= 2 && e.Args[0] == "--check-local")
+            {
+                // 验证「从本地打开」这条路：直接读一个 .uasset（不走索引、不走导出目录）。
+                try
+                {
+                    var settings = SolsticeWinter.Core.StudioSettings.Load(
+                        SolsticeWinter.Core.StudioSettings.DefaultPath(FindRepoRoot() ?? Path.GetTempPath()));
+                    var profile = SolsticeWinter.Core.GameProfile.FromSettings(settings);
+
+                    var workspace = Graph.AssetAccess.OpenWorkspaceFromFile(profile, e.Args[1]);
+                    var asset = Graph.AssetAccess.GetAsset(workspace);
+                    var functionCount = asset is null ? -1 : asset.Exports.OfType<UAssetAPI.ExportTypes.FunctionExport>().Count();
+
+                    Console.WriteLine($"local-open OK: functions={functionCount} names={workspace.Functions.Count}");
+                    Environment.ExitCode = 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"local-open FAIL: {ex.GetType().Name}: {ex.Message}");
+                    Environment.ExitCode = 1;
+                }
+
+                Shutdown(Environment.ExitCode);
+                return;
+            }
+
+            if (e.Args.Length >= 1 && e.Args[0] == "--check-settings")
+            {
+                // 冒烟：真的把设置窗口构造一遍。XAML 解析、StaticResource 解析、转换器实例化
+                // 都在这条路径上发生——构建通过不代表运行时能加载（资源键写错只在运行时炸）。
+                try
+                {
+                    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+                    while (dir is not null && !File.Exists(System.IO.Path.Combine(dir.FullName, "Solstice-winter.slnx")))
+                        dir = dir.Parent;
+
+                    var settingsPath = SolsticeWinter.Core.StudioSettings.DefaultPath(
+                        dir?.FullName ?? Path.GetTempPath());
+                    var settings = SolsticeWinter.Core.StudioSettings.Load(settingsPath);
+                    _ = new Views.SettingsWindow(settings, settingsPath);
+
+                    Console.WriteLine("设置窗口构造成功");
+                    Environment.ExitCode = 0;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"设置窗口构造失败：{ex.GetType().Name}: {ex.Message}");
+                    Environment.ExitCode = 1;
+                }
+
+                Shutdown(Environment.ExitCode);
+                return;
+            }
+
             if (e.Args.Length >= 3 && e.Args[0] == "--blocks")
             {
                 Environment.ExitCode = BlockProbe.Blocks(e.Args[1], e.Args[2]);
@@ -280,6 +334,19 @@ public partial class App : Application
         {
             // 日志写不进去就算了，别因为日志再炸一次
         }
+    }
+
+    /// <summary>从程序目录向上找 <c>Solstice-winter.slnx</c>，找不到返回 null。</summary>
+    private static string? FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "Solstice-winter.slnx"))) return dir.FullName;
+            dir = dir.Parent;
+        }
+
+        return null;
     }
 }
 
